@@ -25,6 +25,8 @@
             height: 100%; 
             width: 100%; 
             overflow: hidden; /* This prevents the user from scrolling past the crop */
+              /* This prevents the "bounce" that reveals the badge on mobile */
+            overscroll-behavior: none;
             background-color: #ffffff;
         }
 
@@ -42,7 +44,7 @@
             width: 100%;
             /* This makes the form 60 pixels taller than the screen, 
                pushing the Tally badge 'under' the bottom edge */
-            height: calc(100% + 60px); 
+            height: calc(100% + 45px); 
             border: none;
         }
  
