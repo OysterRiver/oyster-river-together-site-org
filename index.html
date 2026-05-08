@@ -23,6 +23,19 @@
   gtag('config', 'G-69J55Z3B8G');
 </script>
 
+    <script>
+  // This tracks when someone clicks the area where the form is
+  window.addEventListener('blur', function() {
+    if (document.activeElement.tagName === 'IFRAME') {
+      // If you have GA4 installed, this sends a "Form Interaction" event
+      gtag('event', 'form_start_click', {
+        'event_category': 'engagement',
+        'event_label': 'Tally Petition Start'
+      });
+    }
+  });
+</script>
+
     
     <style type="text/css">
       /*html { margin: 0; height: 100%; overflow: hidden; }
