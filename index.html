@@ -149,7 +149,7 @@
             background-color: #f1f5f9;
         }
 
-        /* --- MODAL FOR LONG COMMENTS --- */
+        /* --- STABLE UNIFIED MODAL ARCHITECTURE --- */
         .modal-overlay {
             display: none; 
             position: fixed;
@@ -164,19 +164,30 @@
             backdrop-filter: blur(3px); 
         }
 
-        .modal-content {
+        .modal-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
             background: #ffffff;
-            padding: 30px;
             border-radius: 8px;
             max-width: 85%;
-            max-height: 80vh;
-            overflow-y: auto;
+            width: 680px;
             box-shadow: 0 10px 25px rgba(0,0,0,0.2);
             position: relative;
+            box-sizing: border-box;
+            padding: 20px 10px;
+        }
+
+        .modal-content {
+            flex-grow: 1;
+            padding: 20px 15px;
+            max-height: 70vh;
+            overflow-y: auto;
             font-size: 18px;
             line-height: 1.6;
             color: #1e293b;
             font-style: italic;
+            text-align: center;
         }
 
         .modal-close {
@@ -187,10 +198,33 @@
             font-size: 24px;
             color: #94a3b8;
             transition: color 0.2s;
+            z-index: 2100;
         }
 
         .modal-close:hover {
             color: #e53e3e;
+        }
+
+        /* Permanently Pinned Center-Aligned Navigation Buttons */
+        .modal-nav-btn {
+            background: none;
+            border: none;
+            color: #94a3b8;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 10px;
+            border-radius: 6px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+            flex-shrink: 0;
+        }
+
+        .modal-nav-btn:hover {
+            color: #0f172a;
+            background-color: #f1f5f9;
         }
 
         /* --- MOBILE LAYOUT OVERRIDES --- */
@@ -231,6 +265,22 @@
                 overflow: hidden;
                 text-overflow: ellipsis; 
             }
+
+            /* Optimized inside-the-box spacing configurations for mobile screen bounds */
+            .modal-wrapper {
+                max-width: 95%;
+                width: 100%;
+                padding: 15px 5px;
+            }
+            .modal-content {
+                font-size: 15px;
+                padding: 15px 5px;
+                max-height: 60vh;
+            }
+            .modal-nav-btn {
+                font-size: 20px;
+                padding: 8px;
+            }
         }
     </style>
 </head>
@@ -257,9 +307,14 @@
     </div>
 
     <div id="comment-modal" class="modal-overlay" onclick="closeModal()">
-        <div class="modal-content" onclick="event.stopPropagation()">
+        <div class="modal-wrapper" onclick="event.stopPropagation()">
             <span class="modal-close" onclick="closeModal()">&times;</span>
-            <div id="modal-text"></div>
+            
+            <button class="modal-nav-btn" id="modal-btn-prev" title="Previous Comment">◀</button>
+            
+            <div id="modal-text" class="modal-content"></div>
+            
+            <button class="modal-nav-btn" id="modal-btn-next" title="Next Comment">▶</button>
         </div>
     </div>
 
@@ -286,18 +341,16 @@
         
         const rawCsvUrl = atob(_0xdata.join(''));
         const formUrl = atob(_0xform.join(''));
-        
-        // Cache-busting parameter added to ensure the absolute latest row modifications pull through immediately
         const csvUrl = rawCsvUrl + "&t=" + new Date().getTime();
 
         document.getElementById('main-form').setAttribute('data-tally-src', formUrl);
 
         let commentsArray = [];
+        let shuffledDeck = []; 
         let currentIndex = 0;
         let carouselTimer = null;
         let isPaused = false;
 
-        // Fetching full file directly to maintain chronological data processing integrity
         fetch(csvUrl)
             .then(response => response.text())
             .then(csvText => {
@@ -306,7 +359,6 @@
                     complete: function(results) {
                         const data = results.data;
                         
-                        // 1. Process Supporter Count
                         if(data.length > 0 && data[0]['Total Supporters']) {
                             let trueCount = parseInt(data[0]['Total Supporters'].replace(/,/g, ''), 10);
                             if(!isNaN(trueCount)) {
@@ -314,15 +366,20 @@
                             }
                         }
 
-                        // 2. Build Comments Array sequentially (Chronological submission order)
                         data.forEach(row => {
                             if(row['Comments'] && row['Comments'].trim() !== '') {
                                 commentsArray.push(row['Comments'].trim());
                             }
                         });
 
-                        // 3. Mount item zero and start standard playback loop
                         if(commentsArray.length > 0) {
+                            shuffledDeck = [...commentsArray];
+                            
+                            for (let i = shuffledDeck.length - 1; i > 0; i--) {
+                                const j = Math.floor(Math.random() * (i + 1));
+                                [shuffledDeck[i], shuffledDeck[j]] = [shuffledDeck[j], shuffledDeck[i]];
+                            }
+
                             currentIndex = 0;
                             showComment(currentIndex);
                             startTimer();
@@ -338,22 +395,30 @@
             });
 
         function showComment(index) {
-            if(commentsArray.length === 0) return;
+            if(shuffledDeck.length === 0) return;
             
-            if(index >= commentsArray.length) currentIndex = 0;
-            else if(index < 0) currentIndex = commentsArray.length - 1;
-            else currentIndex = index;
+            if(index >= shuffledDeck.length) {
+                currentIndex = 0;
+            } else if(index < 0) {
+                currentIndex = shuffledDeck.length - 1;
+            } else {
+                currentIndex = index;
+            }
 
-            let rawComment = commentsArray[currentIndex];
+            let rawComment = shuffledDeck[currentIndex];
             document.getElementById('active-comment').innerHTML = 
                 `<span class="comment-text" onclick="openModal()" title="Click to read full comment">"${rawComment}"</span>`;
+                
+            // Sync text seamlessly if modal remains actively mounted across navigation clicks
+            if(document.getElementById('comment-modal').style.display === 'flex') {
+                document.getElementById('modal-text').innerText = '"' + rawComment + '"';
+            }
         }
 
         function startTimer() {
             clearInterval(carouselTimer);
-            if (isPaused || commentsArray.length === 0) return;
+            if (isPaused || shuffledDeck.length === 0) return;
 
-            // Stable 7-second standard intervals
             carouselTimer = setInterval(() => {
                 showComment(currentIndex + 1);
             }, 7000); 
@@ -365,7 +430,7 @@
 
         function openModal() {
             clearInterval(carouselTimer);
-            document.getElementById('modal-text').innerText = '"' + commentsArray[currentIndex] + '"';
+            document.getElementById('modal-text').innerText = '"' + shuffledDeck[currentIndex] + '"';
             document.getElementById('comment-modal').style.display = 'flex';
             
             isPaused = true;
@@ -380,6 +445,7 @@
             startTimer();
         }
 
+        // Bottom Bar Control Handlers
         document.getElementById('btn-next').addEventListener('click', () => {
             showComment(currentIndex + 1);
             resetTimer(); 
@@ -388,6 +454,15 @@
         document.getElementById('btn-prev').addEventListener('click', () => {
             showComment(currentIndex - 1);
             resetTimer();
+        });
+
+        // Locked Modal Internal Navigation Arrow Handlers
+        document.getElementById('modal-btn-next').addEventListener('click', () => {
+            showComment(currentIndex + 1);
+        });
+
+        document.getElementById('modal-btn-prev').addEventListener('click', () => {
+            showComment(currentIndex - 1);
         });
 
         document.getElementById('btn-pause').addEventListener('click', (e) => {
